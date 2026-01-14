@@ -1,8 +1,12 @@
 # Python
 __pycache__/
 *.pyc
+
 *.pyo
 *.pyd
+.env
+.venv/
+venv/
 
 # Jupyter
 .ipynb_checkpoints/
@@ -27,3 +31,15 @@ Thumbs.db
 
 # VS Code
 .vscode/
+# Data (large files)
+data/raw/
+data/processed/
+
+# Models & outputs
+models/
+results/
+
+# OS files
+.DS_Store
+Thumbs.db
+

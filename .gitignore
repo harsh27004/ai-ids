@@ -19,7 +19,9 @@ anaconda_projects/
 .conda/
 
 # Data (raw datasets are large)
+data/processed/
 data/raw/
+*.csv
 
 # Models
 *.pkl

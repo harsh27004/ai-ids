@@ -28,9 +28,9 @@ data/raw/
 *.joblib
 
 # OS
+
 .DS_Store
 Thumbs.db
-
 # VS Code
 .vscode/
 # Data (large files)

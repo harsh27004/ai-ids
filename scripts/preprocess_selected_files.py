@@ -4,8 +4,8 @@ import os
 
 RAW_DATA_DIR = "data/raw/cicids2018/"
 FILES_TO_USE = [
-    "Friday-02-03-2018_TrafficForML_CICFlowMeter.csv",
-    "Friday-16-02-2018_TrafficForML_CICFlowMeter.csv"
+    "Tuesday-20-02-2018_TrafficForML_CICFlowMeter.csv",
+    "Thursday-15-02-2018_TrafficForML_CICFlowMeter.csv"
 ]
 
 OUTPUT_FILE = "data/processed/cicids2018_selected_binary.csv"
@@ -21,9 +21,10 @@ for file in FILES_TO_USE:
     print(f"📥 Loading {file}")
 
     df = pd.read_csv(
-        path,
-        low_memory=False,
-        on_bad_lines="skip"
+    path,
+    low_memory=False,
+    on_bad_lines="skip",
+    nrows=300000   # limits rows for faster training
     )
 
     # Clean columns

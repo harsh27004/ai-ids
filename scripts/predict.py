@@ -1,21 +1,13 @@
 import joblib
 import pandas as pd
-import numpy as np
-import json
 
 # Load model
-model = joblib.load("models/random_forest_ids.pkl")
-scaler = joblib.load("models/scaler.pkl")
+model = joblib.load("unsw_ids_model.pkl")
 
-# Load feature columns
-with open("models/feature_columns.json", "r") as f:
-    feature_columns = json.load(f)
+# Load new sample data
+sample = pd.read_csv("sample_input.csv")
 
-def predict_sample(sample_dict):
-    df = pd.DataFrame([sample_dict])
-    df = df[feature_columns]
-    df_scaled = scaler.transform(df)
-    prediction = model.predict(df_scaled)[0]
-    return "Attack" if prediction == 1 else "Benign"
+# Predict
+prediction = model.predict(sample)
 
-print("Model Ready for Inference")
+print("Prediction:", prediction)

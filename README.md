@@ -1,6 +1,19 @@
-# AI-Powered Intrusion Detection System for Cloud Networks
+# AI-Based Intrusion Detection System (UNSW-NB15)
 
-## Overview
-Short project description: Build and evaluate machine-learning and deep-learning models to detect intrusions in cloud-style network traffic using public IDS datasets (CICIDS2017, NSL-KDD). Includes preprocessing, baseline models, deep models, and a simple demo pipeline.
+This project is a Machine Learning based Intrusion Detection System 
+that classifies network traffic into multiple attack categories.
 
-## Structure
+## Features
+- Multi-class attack classification
+- Real-time prediction UI (Streamlit)
+- Probability confidence visualization
+- Clean dashboard interface
+
+## Dataset
+UNSW-NB15
+
+## Model
+Random Forest Classifier (Multi-class)
+
+## Deployment
+Built using Streamlit

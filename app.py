@@ -23,24 +23,20 @@ st.set_page_config(
 # ---------------------------------------------------
 st.markdown("""
 <style>
-
 body {
 background: linear-gradient(270deg,#0b0f19,#111827,#0b0f19);
 background-size: 400% 400%;
 animation: gradientBG 15s ease infinite;
 }
-
 @keyframes gradientBG {
 0% {background-position:0% 50%;}
 50% {background-position:100% 50%;}
 100% {background-position:0% 50%;}
 }
-
 [data-testid="stSidebar"] {
 background-color:#0f172a;
 width:350px;
 }
-
 .metric-card {
 background:#111827;
 padding:25px;
@@ -49,33 +45,19 @@ text-align:center;
 transition:0.3s;
 box-shadow:0 0 15px rgba(0,255,255,0.2);
 }
-
 .metric-card:hover {
 transform:scale(1.05);
 box-shadow:0 0 30px rgba(0,255,255,0.6);
 }
-
 .metric-value {
 font-size:32px;
 font-weight:bold;
 color:#00f5ff;
 }
-
 .section-title {
 color:#00f5ff;
 text-shadow:0 0 15px #00f5ff;
 }
-
-[data-testid="stFileUploader"]{
-border:2px dashed #00f5ff;
-border-radius:15px;
-padding:20px;
-background:#0f172a;
-box-shadow:0 0 20px rgba(0,255,255,0.3);
-width:60%;
-margin:auto;
-}
-
 .counter-box{
 background:#0f172a;
 padding:20px;
@@ -86,13 +68,11 @@ color:#ff4b4b;
 box-shadow:0 0 15px rgba(255,0,0,0.4);
 animation:pulse 2s infinite;
 }
-
 @keyframes pulse{
 0%{opacity:1}
 50%{opacity:0.6}
 100%{opacity:1}
 }
-
 </style>
 """, unsafe_allow_html=True)
 
@@ -112,6 +92,11 @@ model, le = load_components()
 # ---------------------------------------------------
 st.sidebar.title("Welcome...")
 
+mode = st.sidebar.radio(
+    "Input Mode",
+    ["Model CSV", "Wireshark CSV"]
+)
+
 menu = st.sidebar.radio(
     "Navigation",
     ["Overview","Threat Analytics","Traffic Explorer","Model Info"]
@@ -123,30 +108,118 @@ threshold = st.sidebar.slider(
 )
 
 # ---------------------------------------------------
+# PREPROCESSING FUNCTIONS
+# ---------------------------------------------------
+def preprocess_wireshark(df):
+
+    df = df.rename(columns={
+        "frame.len": "sbytes",
+        "frame.time_delta": "dur",
+        "ip.src": "srcip",
+        "ip.dst": "dstip",
+        "tcp.srcport": "sport",
+        "tcp.dstport": "dsport",
+        "frame.protocols": "proto"
+    })
+
+    if "proto" in df.columns:
+        df["proto"] = df["proto"].astype(str)
+
+    df["dbytes"] = df.get("sbytes", 0) * 0.8
+    df["spkts"] = 1
+    df["dpkts"] = 1
+    df["rate"] = df.get("sbytes", 0) / (df.get("dur", 1) + 1)
+
+    df = df.fillna(0)
+
+    return df
+
+
+def align_features(df, model):
+
+    try:
+        expected_cols = model.feature_names_in_
+    except:
+        st.error("Model missing feature names")
+        return df
+
+    for col in expected_cols:
+        if col not in df.columns:
+            df[col] = 0
+
+    df = df[expected_cols]
+
+    return df
+
+
+def fix_categorical_values(df, model):
+
+    try:
+        ct = model.named_steps['preprocessor']
+    except:
+        return df
+
+    for name, transformer, cols in ct.transformers_:
+
+        if name == 'cat':
+
+            # HANDLE BOTH CASES
+            if hasattr(transformer, "named_steps"):
+                encoder = transformer.named_steps.get("onehot", None)
+            else:
+                encoder = transformer
+
+            if encoder is None:
+                continue
+
+            for i, col in enumerate(cols):
+
+                if col not in df.columns:
+                    continue
+
+                known_values = encoder.categories_[i]
+
+                df[col] = df[col].apply(
+                    lambda x: x if x in known_values else known_values[0]
+                )
+
+    return df
+
+# ---------------------------------------------------
 # HEADER
 # ---------------------------------------------------
 st.markdown("<h1 class='section-title'>AI-Powered Intrusion Detection System</h1>",unsafe_allow_html=True)
 st.caption("Security Operations Center Dashboard")
 
-# ---------------------------------------------------
-# FILE UPLOAD CENTER
-# ---------------------------------------------------
 uploaded_file = st.file_uploader(
     "Upload Network Traffic CSV",
     type=["csv"]
 )
 
 # ---------------------------------------------------
-# LOAD DATA
+# MAIN LOGIC
 # ---------------------------------------------------
 if uploaded_file is not None:
 
     df = pd.read_csv(uploaded_file)
 
-    with st.spinner("Analyzing network traffic..."):
+    if mode == "Wireshark CSV":
+        st.info("⚙️ Processing Wireshark data...")
+        df = preprocess_wireshark(df)
+        st.success("✅ Converted to model-compatible format")
 
-        predictions = model.predict(df)
-        probabilities = model.predict_proba(df)
+    df_aligned = align_features(df.copy(), model)
+
+    # FIX unknown categorical issue
+    df_aligned = fix_categorical_values(df_aligned, model)
+
+    # DEBUG OPTION
+    if st.checkbox("Show Processed Data (Debug)"):
+        st.write(df_aligned.head())
+
+    with st.spinner("Analyzing network traffic..."):
+        predictions = model.predict(df_aligned)
+        probabilities = model.predict_proba(df_aligned)
 
     df["Predicted_Attack"] = le.inverse_transform(predictions)
     df["Confidence (%)"] = np.max(probabilities, axis=1) * 100
@@ -237,7 +310,6 @@ if uploaded_file is not None:
             )
 
             st.plotly_chart(fig_pie,use_container_width=True)
-
 # ---------------------------------------------------
 # THREAT ANALYTICS
 # ---------------------------------------------------
@@ -304,14 +376,12 @@ if uploaded_file is not None:
 # ---------------------------------------------------
     elif menu == "Traffic Explorer":
 
-        st.markdown("<h2 class='section-title'>Network Traffic Explorer</h2>",unsafe_allow_html=True)
-
         st.dataframe(df_filtered,use_container_width=True)
 
         csv = df_filtered.to_csv(index=False).encode("utf-8")
 
         st.download_button(
-            "Download Detection Report",
+            "Download Report",
             csv,
             "AI_IDS_Report.csv",
             "text/csv"
@@ -331,31 +401,6 @@ if uploaded_file is not None:
 Binary Accuracy: ~93%  
 Multi-class Accuracy: ~76%
 """)
-
-        st.subheader("Feature Importance")
-
-        try:
-
-            importances = model.feature_importances_
-            features = df.columns[:len(importances)]
-
-            importance_df = pd.DataFrame({
-                "Feature":features,
-                "Importance":importances
-            }).sort_values(by="Importance", ascending=False).head(10)
-
-            fig_imp = px.bar(
-                importance_df,
-                x="Importance",
-                y="Feature",
-                orientation="h",
-                template="plotly_dark"
-            )
-
-            st.plotly_chart(fig_imp,use_container_width=True)
-
-        except:
-            st.warning("Feature importance unavailable")
 
         # Confusion Matrix
         if "label" in df.columns:

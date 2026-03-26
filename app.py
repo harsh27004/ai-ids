@@ -8,6 +8,15 @@ from sklearn.metrics import confusion_matrix
 import seaborn as sns
 import matplotlib.pyplot as plt
 
+import os
+import urllib.request
+
+model_path = "unsw_multiclass_model.pkl"
+if not os.path.exists(model_path):
+    # Download from your storage (Google Drive, S3, etc.)
+    url = "YOUR_DOWNLOAD_URL_HERE"
+    urllib.request.urlretrieve(url, model_path)
+
 # ---------------------------------------------------
 # PAGE CONFIG
 # ---------------------------------------------------
